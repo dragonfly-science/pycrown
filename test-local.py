@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     TSTART = datetime.now()
 
-    F_CHM = 'data/fill.tif'
+    F_CHM = 'data/chm.tif'
     F_DTM = 'data/dem.tif'
     F_DSM = 'data/dsm.tif'
     F_LAS = 'data/CL3_BM34_2018_1000_2938.laz'
