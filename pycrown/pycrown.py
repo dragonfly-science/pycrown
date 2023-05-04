@@ -11,7 +11,7 @@ import warnings
 from math import floor
 from pathlib import Path
 
-import pyximport
+import pyximport; pyximport.install()
 
 import numpy as np
 import pandas as pd
@@ -26,7 +26,7 @@ from skimage.filters import threshold_otsu
 # from skimage.feature import peak_local_max
 
 from osgeo import gdal
-import osr
+from osgeo import osr
 
 from shapely.geometry import mapping, Point, Polygon
 
@@ -187,14 +187,13 @@ class PyCrown:
         fname :   str
                   Path to LiDAR dataset (.las or .laz-file)
         """
-        las = laspy.file.File(str(fname), mode='r')
+        las = laspy.read(str(fname))
         lidar_points = np.array((
             las.x, las.y, las.z, las.intensity, las.return_num,
             las.classification
         )).transpose()
         colnames = ['x', 'y', 'z', 'intensity', 'return_num', 'classification']
         self.las = pd.DataFrame(lidar_points, columns=colnames)
-        las.close()
 
     def _check_empty(self):
         """ Helper function raising an Exception if no trees present
@@ -548,7 +547,7 @@ class PyCrown:
         else:
             df = pd.DataFrame(np.array([trees, trees], dtype='object').T,
                               dtype='object', columns=['top_cor', 'top'])
-            self.trees = self.trees.append(df)
+            self.trees = self.trees._append(df)
 
         self._check_empty()
 
@@ -863,7 +862,7 @@ class PyCrown:
             # check that not all values are the same
             if len(points.z) > 1 and not np.allclose(points.z,
                                                      points.iloc[0].z):
-                points = points[points.z >= threshold_otsu(points.z)]
+                points = points[points.z >= threshold_otsu(points.z.values)]
                 if first_return:
                     points = points[points.return_num == 1]  # first returns
             hull = points.unary_union.convex_hull
@@ -876,21 +875,22 @@ class PyCrown:
             print('Classifying point cloud')
             lidar_in_crowns = lidar_in_crowns[lidar_tree_mask]
             lidar_tree_class = lidar_tree_class[lidar_tree_mask]
-            header = laspy.header.Header()
+            header = laspy.LasHeader(point_format=3, version="1.2")            
+            las = laspy.LasData(header)
             self.outpath.mkdir(parents=True, exist_ok=True)
-            outfile = laspy.file.File(
-                self.outpath / "trees.las", mode="w", header=header
-            )
+            
             xmin = np.floor(np.min(lidar_in_crowns.x))
             ymin = np.floor(np.min(lidar_in_crowns.y))
             zmin = np.floor(np.min(lidar_in_crowns.z))
-            outfile.header.offset = [xmin, ymin, zmin]
-            outfile.header.scale = [0.001, 0.001, 0.001]
-            outfile.x = lidar_in_crowns.x
-            outfile.y = lidar_in_crowns.y
-            outfile.z = lidar_in_crowns.z
-            outfile.intensity = lidar_tree_class
-            outfile.close()
+            las.offsets = [xmin, ymin, zmin]
+            las.scales = [0.001, 0.001, 0.001]
+            las.x = lidar_in_crowns.x
+            las.y = lidar_in_crowns.y
+            las.z = lidar_in_crowns.z
+            las.intensity = lidar_tree_class
+            outfile = las.write(
+                self.outpath / "trees.las"
+            )
 
         self.lidar_in_crowns = lidar_in_crowns
 
@@ -923,7 +923,7 @@ class PyCrown:
         loc :     str, optional
                   tree seed position: `top` or `top_cor`
         """
-        outfile = self.outpath / f'tree_location_{loc}.shp'
+        outfile = self.outpath / f'tree_location_{loc}.gpkg'
         outfile.parent.mkdir(parents=True, exist_ok=True)
 
         if outfile.exists():
@@ -934,7 +934,7 @@ class PyCrown:
             'properties': {'DN': 'int', 'TH': 'float', 'COR': 'int'}
         }
         with fiona.collection(
-            str(outfile), 'w', 'ESRI Shapefile', schema, crs=self.srs
+            str(outfile), 'w', 'GPKG', schema, crs=self.srs
         ) as output:
             for tidx in range(len(self.trees)):
                 feat = {}
@@ -956,7 +956,7 @@ class PyCrown:
                       choose whether the raster of smoothed version should be
                       exported: `crown_poly_smooth` or `crown_poly_raster`
         """
-        outfile = self.outpath / f'tree_{crowntype}.shp'
+        outfile = self.outpath / f'tree_{crowntype}.gpkg'
         outfile.parent.mkdir(parents=True, exist_ok=True)
 
         if outfile.exists():
@@ -967,7 +967,7 @@ class PyCrown:
             'properties': {'DN': 'int', 'TTH': 'float', 'TCH': 'float'}
         }
         with fiona.collection(
-            str(outfile), 'w', 'ESRI Shapefile',
+            str(outfile), 'w', 'GPKG',
             schema, crs=self.srs
         ) as output:
             for tidx in range(len(self.trees)):

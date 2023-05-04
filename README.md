@@ -1,4 +1,13 @@
-[![manaakiwhenua-standards](https://github.com/manaakiwhenua/pycrown/workflows/manaakiwhenua-standards/badge.svg)](https://github.com/manaakiwhenua/manaakiwhenua-standards)
+# THIS REPO IS MODIFIED FROM ITS ORIGINAL SET UP. 
+
+## MAJOR CHANGES
+- no longer conda process
+- using laspy >2
+- using GDAL bin install
+
+- RASTER DATA MUST BE FLOAT32 OR LESS
+- ALL DATA MUST BE ALIGNED
+- CURRENTLY FALLS OVER IN URBAN SPACES
 
 
 # PyCrown - Fast raster-based individual tree segmentation for LiDAR data

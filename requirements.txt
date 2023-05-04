@@ -8,5 +8,6 @@ geopandas
 Rtree
 Fiona
 laspy
+laspy[laszip]
 Shapely
 rasterio

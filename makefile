@@ -10,6 +10,9 @@ RUN ?= docker run -it --rm --net=host --user=$$(id -u):$$(id -g) -e DISPLAY=$$DI
 
 # .PHONY
 
+trees:
+	$(RUN) python3 test-local.py
+
 test-local: Dockerfile
 	docker run -it --rm --net=host --user=$$(id -u):$$(id -g) \
 	-e DISPLAY=$$DISPLAY \
@@ -23,8 +26,7 @@ docker-local: Dockerfile
 	docker tag $(BASEIMAGE) $(IMAGE)
 
 docker: Dockerfile
-	echo $(DOCKER_PW) | docker login --username deployhub1 --password-stdin
-	docker build --tag $(BASEIMAGE) - < $<  && \
+	docker build --tag $(BASEIMAGE) . && \
 	docker tag $(BASEIMAGE) $(IMAGE) && \
 	docker push $(IMAGE) && \
 	touch .push
